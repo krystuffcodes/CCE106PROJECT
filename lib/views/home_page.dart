@@ -1,8 +1,12 @@
+// lib/views/home_page.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/item_service.dart';
 import '../widgets/item_card.dart';
 import 'item_detail_page.dart';
+import '../models/item.dart';
+import 'profile_page.dart'; // ✅ import profile page
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -11,45 +15,148 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _currentIndex = 0; // ✅ track which tab is selected
+  int _currentIndex = 0;
+  String _searchQuery = "";
 
   @override
   Widget build(BuildContext context) {
     final service = Provider.of<ItemService>(context);
     final items = service.items;
 
-    // Pages for nav bar
+    final filteredItems = items.where((item) {
+      final q = _searchQuery.toLowerCase();
+      return item.title.toLowerCase().contains(q) ||
+          item.locationFound.toLowerCase().contains(q) ||
+          item.category.toLowerCase().contains(q);
+    }).toList();
+
     final List<Widget> _pages = [
-      // 🏠 Home page (grid items)
-      GridView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.7,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-        ),
-        itemCount: items.length,
-        itemBuilder: (ctx, i) {
-          final it = items[i];
-          return ItemCard(
-            item: it,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => ItemDetailPage(item: it)),
+      // 🏠 Home
+      Column(
+        children: [
+          Container(
+            color: const Color(0xFFb71c1c),
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            child: const Text(
+              "Lost & Found Items",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          );
-        },
+          ),
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.7,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+              ),
+              itemCount: items.length,
+              itemBuilder: (ctx, i) {
+                final it = items[i];
+                return ItemCard(
+                  item: it,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => ItemDetailPage(item: it)),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
 
-      // 🔍 Search placeholder
-      const Center(
-        child: Text("Search Page", style: TextStyle(fontSize: 18)),
+      // 🔍 Search
+      Column(
+        children: [
+          Container(
+            color: const Color(0xFFb71c1c),
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            child: const Text(
+              "Search Items",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: "Search by name, category, or location",
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              onChanged: (val) {
+                setState(() {
+                  _searchQuery = val;
+                });
+              },
+            ),
+          ),
+          Expanded(
+            child: filteredItems.isEmpty
+                ? const Center(
+                    child: Text("No items found",
+                        style: TextStyle(color: Colors.grey)))
+                : ListView.builder(
+                    itemCount: filteredItems.length,
+                    itemBuilder: (ctx, i) {
+                      final it = filteredItems[i];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        child: ListTile(
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: it.imagePath.startsWith('assets/')
+                                ? Image.asset(
+                                    it.imagePath,
+                                    height: 60,
+                                    width: 60,
+                                    fit: BoxFit.contain,
+                                  )
+                                : Image.file(
+                                    File(it.imagePath),
+                                    height: 60,
+                                    width: 60,
+                                    fit: BoxFit.contain,
+                                  ),
+                          ),
+                          title: Text(it.title,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle:
+                              Text("${it.category} • ${it.locationFound}"),
+                          trailing: Icon(
+                            it.isFound ? Icons.check_circle : Icons.cancel,
+                            color: it.isFound ? Colors.green : Colors.red,
+                          ),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => ItemDetailPage(item: it)),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
 
-      // 🗂️ Category placeholder
-      const Center(
-        child: Text("Category Page", style: TextStyle(fontSize: 18)),
-      ),
+      // 📂 Category
+      CategoryPage(items: items),
     ];
 
     return Scaffold(
@@ -59,13 +166,10 @@ class _HomePageState extends State<HomePage> {
         title: Row(
           children: [
             const SizedBox(width: 12),
-            Image.asset(
-              'assets/logo.png',
-              height: 40,
-            ),
+            Image.asset('assets/logo.png', height: 40),
             const SizedBox(width: 10),
             const Text(
-              'Lost & Found',
+              '',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w300,
@@ -78,24 +182,23 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             icon: const Icon(Icons.person, color: Colors.white),
             onPressed: () {
-              // navigate to profile if created
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfilePage()),
+              );
             },
           ),
         ],
       ),
 
-      // ✅ Floating Action Button (white background + red plus)
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.white, // white button
+        backgroundColor: Colors.white,
         onPressed: () => Navigator.of(context).pushNamed('/upload'),
-        child: const Icon(Icons.add, color: Color(0xFFb71c1c)), // red plus
+        child: const Icon(Icons.add, color: Color(0xFFb71c1c)),
       ),
 
-      body: SafeArea(
-        child: _pages[_currentIndex], // ✅ display selected page
-      ),
+      body: SafeArea(child: _pages[_currentIndex]),
 
-      // ✅ Rounded Bottom Navigation Bar
       bottomNavigationBar: Container(
         margin: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -119,27 +222,118 @@ class _HomePageState extends State<HomePage> {
               });
             },
             backgroundColor: Colors.white,
-            selectedItemColor: const Color(0xFFb71c1c), // ✅ red active icon
-            unselectedItemColor: Colors.grey, // ✅ grey inactive
+            selectedItemColor: const Color(0xFFb71c1c),
+            unselectedItemColor: Colors.grey,
             showSelectedLabels: false,
             showUnselectedLabels: false,
             items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+              BottomNavigationBarItem(icon: Icon(Icons.search), label: "Search"),
               BottomNavigationBarItem(
-                icon: Icon(Icons.home),
-                label: "Home",
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.search),
-                label: "Search",
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.category),
-                label: "Category",
-              ),
+                  icon: Icon(Icons.category), label: "Category"),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+// ===============================
+// CATEGORY PAGE (Dropdown version)
+// ===============================
+class CategoryPage extends StatefulWidget {
+  final List<Item> items;
+  const CategoryPage({super.key, required this.items});
+
+  @override
+  State<CategoryPage> createState() => _CategoryPageState();
+}
+
+class _CategoryPageState extends State<CategoryPage> {
+  String? selectedCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    final categories = widget.items
+        .map((e) => (e.category ?? 'Others').trim())
+        .where((c) => c.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+
+    final dropdownCategories = ["All", ...categories];
+
+    final filteredItems = (selectedCategory == null || selectedCategory == "All")
+        ? widget.items
+        : widget.items
+            .where((it) => (it.category ?? '').toLowerCase() ==
+                selectedCategory!.toLowerCase())
+            .toList();
+
+    return Column(
+      children: [
+        Container(
+          color: const Color(0xFFb71c1c),
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          child: const Text(
+            "Browse by Category",
+            style: TextStyle(
+                color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: DropdownButtonFormField<String>(
+            value: selectedCategory ?? "All",
+            decoration: InputDecoration(
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              labelText: "Select Category",
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            items: dropdownCategories.map((cat) {
+              return DropdownMenuItem(
+                value: cat,
+                child: Text(cat),
+              );
+            }).toList(),
+            onChanged: (val) {
+              setState(() {
+                selectedCategory = val;
+              });
+            },
+          ),
+        ),
+
+        Expanded(
+          child: filteredItems.isEmpty
+              ? const Center(child: Text("No items in this category"))
+              : GridView.builder(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.7,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                  ),
+                  itemCount: filteredItems.length,
+                  itemBuilder: (ctx, i) {
+                    final it = filteredItems[i];
+                    return ItemCard(
+                      item: it,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => ItemDetailPage(item: it)),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }

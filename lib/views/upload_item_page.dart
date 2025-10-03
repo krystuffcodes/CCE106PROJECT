@@ -21,6 +21,18 @@ class _UploadItemPageState extends State<UploadItemPage> {
   bool _isFound = true;
   File? _pickedImage;
 
+  // ✅ Category dropdown
+  final List<String> _categories = [
+    'Phone',
+    'Wallet',
+    'ID',
+    'Keys',
+    'Bottle',
+    'Bag',
+    'Others'
+  ];
+  String? _selectedCategory; // store dropdown value
+
   Future<void> _pickImage() async {
     final p = await ImagePicker().pickImage(
       source: ImageSource.gallery,
@@ -62,7 +74,6 @@ class _UploadItemPageState extends State<UploadItemPage> {
   void dispose() {
     _title.dispose();
     _location.dispose();
-    _category.dispose();
     _description.dispose();
     super.dispose();
   }
@@ -75,7 +86,7 @@ class _UploadItemPageState extends State<UploadItemPage> {
       imagePath: imagePath,
       locationFound: _location.text,
       dateTime: _dt,
-      category: _category.text.isEmpty ? 'Other' : _category.text,
+      category: _selectedCategory ?? 'Others', // ✅ dropdown value
       isFound: _isFound,
       reporterId: 'user1',
       description: _description.text,
@@ -86,7 +97,14 @@ class _UploadItemPageState extends State<UploadItemPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Report Item')),
+      appBar: AppBar(
+        title: const Text(
+          'Report Item',
+          style: TextStyle(color: Colors.white), // ✅ white title
+        ),
+        backgroundColor: const Color(0xFFb71c1c),
+        iconTheme: const IconThemeData(color: Colors.white), // ✅ white back arrow
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(children: [
@@ -122,9 +140,20 @@ class _UploadItemPageState extends State<UploadItemPage> {
           ),
           const SizedBox(height: 8),
 
-          TextField(
-            controller: _category,
-            decoration: const InputDecoration(hintText: 'Category'),
+          // ✅ Category Dropdown
+          DropdownButtonFormField<String>(
+            decoration: const InputDecoration(
+              hintText: 'Select Category',
+              border: OutlineInputBorder(),
+            ),
+            value: _selectedCategory,
+            items: _categories
+                .map((cat) => DropdownMenuItem(
+                      value: cat,
+                      child: Text(cat),
+                    ))
+                .toList(),
+            onChanged: (val) => setState(() => _selectedCategory = val),
           ),
           const SizedBox(height: 8),
 
@@ -168,6 +197,10 @@ class _UploadItemPageState extends State<UploadItemPage> {
           // ⬆️ Upload button
           ElevatedButton(
             onPressed: _save,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFb71c1c),
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Upload'),
           ),
         ]),

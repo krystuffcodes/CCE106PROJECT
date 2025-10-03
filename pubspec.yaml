@@ -15,6 +15,13 @@ dependencies:
   intl: ^0.20.2
   cupertino_icons: ^1.0.8
   uuid: ^4.5.1
+  
+  # Firebase dependencies
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.0
+  cloud_firestore: ^5.4.0
+  firebase_storage: ^12.2.0
+
 
 
 dev_dependencies:
@@ -30,3 +37,4 @@ flutter:
     - assets/backgroundclean.png
     - assets/sample1.jpg
     - assets/sample2.jpg
+    - assets/profile.jpg
