@@ -18,6 +18,9 @@ class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   String _searchQuery = "";
 
+  // 🔹 Placeholder user data (later connect to Firebase)
+  String userName = "";
+
   @override
   Widget build(BuildContext context) {
     final service = Provider.of<ItemService>(context);
@@ -164,31 +167,46 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: const Color(0xFFb71c1c),
         titleSpacing: 0,
         title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const SizedBox(width: 12),
-            Image.asset('assets/logo.png', height: 40),
-            const SizedBox(width: 10),
-            const Text(
-              '',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w300,
-                fontSize: 20,
+            // ✅ Left side logo
+            Row(
+              children: [
+                const SizedBox(width: 12),
+                Image.asset('assets/logo.png', height: 40),
+              ],
+            ),
+
+            // ✅ Right side: name (left) + tappable icon
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfilePage()),
+                );
+              },
+              child: Row(
+                children: [
+                  const SizedBox(width: 8),
+                  Text(
+                    userName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16, // 🔹 Adjust font size here
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const CircleAvatar(
+                    radius: 15,
+                    backgroundImage: AssetImage('assets/profile.jpg'),
+                  ),
+                  const SizedBox(width: 12),
+                ],
               ),
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProfilePage()),
-              );
-            },
-          ),
-        ],
       ),
 
       floatingActionButton: FloatingActionButton(

@@ -5,10 +5,17 @@ import 'services/item_service.dart';
 import 'views/login_page.dart';
 import 'views/home_page.dart';
 import 'views/upload_item_page.dart';
+import 'views/register_page.dart'; // ✅ import register page
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+  void main() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    runApp(const MyApp());
+  }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -28,6 +35,7 @@ class MyApp extends StatelessWidget {
           '/': (_) => const LoginPage(),
           '/home': (_) => const HomePage(),
           '/upload': (_) => const UploadItemPage(),
+          '/register': (_) => const RegisterPage(), // ✅ add this
         },
       ),
     );
