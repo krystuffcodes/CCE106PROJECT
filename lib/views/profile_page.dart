@@ -1,153 +1,182 @@
-// lib/views/profile_page.dart
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'settings_page.dart';
-import 'my_reported_items_page.dart';
-import 'login_page.dart'; // For logout redirection
 
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
-  @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
-
-class _ProfilePageState extends State<ProfilePage> {
-  String? _email;
-  String? _name;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserInfo();
-  }
-
-  // ✅ Load the saved user info from SharedPreferences
-  Future<void> _loadUserInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _email = prefs.getString("email") ?? "No email found";
-      _name = prefs.getString("name") ?? "Unknown User";
-    });
-  }
-
-  void _logout(BuildContext context) {
-    showDialog(
+  Future<void> _confirmLogout(BuildContext context) async {
+    final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Logout"),
-        content: const Text("Are you sure you want to log out?"),
+        title: const Text('Confirm Logout'),
+        content: const Text('Are you sure you want to log out?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text("Cancel"),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.clear(); // clear saved user data
-              if (!context.mounted) return;
-
-              Navigator.of(ctx).pop(); // close dialog
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginPage()),
-                (route) => false,
-              );
-            },
-            child: const Text("Logout"),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFb71c1c),
+            ),
+            child: const Text('Logout'),
           ),
         ],
       ),
     );
+
+    if (shouldLogout == true) {
+      await FirebaseAuth.instance.signOut();
+      if (context.mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    String displayName = user?.displayName ?? 'Unknown User';
+    String email = user?.email ?? 'No email found';
+    String photoUrl = user?.photoURL ??
+        'https://cdn-icons-png.flaticon.com/512/149/149071.png'; // default avatar
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          "My Profile",
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('My Profile'),
         backgroundColor: const Color(0xFFb71c1c),
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: _email == null
-          ? const Center(child: CircularProgressIndicator()) // loading state
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // 👤 Profile Picture
-                  const CircleAvatar(
-                    radius: 50,
-                    backgroundImage: AssetImage("assets/profile.jpg"),
-                  ),
-                  const SizedBox(height: 12),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            CircleAvatar(radius: 55, backgroundImage: NetworkImage(photoUrl)),
+            const SizedBox(height: 16),
+            Text(
+              displayName,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            Text(email, style: const TextStyle(color: Colors.black54)),
+            const SizedBox(height: 40),
 
-                  // 🧑 Dynamic Name
-                  Text(
-                    _name ?? "User",
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
+            // ⚙️ Settings
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Settings'),
+              trailing: const Icon(Icons.arrow_forward_ios),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsPage()),
+                );
+              },
+            ),
 
-                  // 📧 Dynamic Email
-                  Text(
-                    _email ?? "",
-                    style: const TextStyle(color: Colors.grey, fontSize: 16),
-                  ),
-                  const SizedBox(height: 20),
+            // 📋 My Reports
+            ListTile(
+              leading: const Icon(Icons.list_alt),
+              title: const Text('My Reported Items'),
+              trailing: const Icon(Icons.arrow_forward_ios),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ReportedItemsPage()),
+                );
+              },
+            ),
 
-                  // ⚙️ Settings
-                  ListTile(
-                    leading: const Icon(Icons.settings, color: Colors.black),
-                    title: const Text("Settings"),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const SettingsPage()),
-                      );
-                    },
-                  ),
+            const Spacer(),
 
-                  // 📦 My Reports
-                  ListTile(
-                    leading: const Icon(Icons.list, color: Colors.black),
-                    title: const Text("My Reported Items"),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const MyReportedItemsPage()),
-                      );
-                    },
+            // 🚪 Logout
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _confirmLogout(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFb71c1c),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
                   ),
-
-                  const Spacer(),
-
-                  // 🚪 Logout
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFb71c1c),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 50),
-                    ),
-                    icon: const Icon(Icons.logout),
-                    label: const Text("Logout"),
-                    onPressed: () => _logout(context),
+                ),
+                icon: const Icon(Icons.logout, color: Colors.white),
+                label: const Text(
+                  'Logout',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
-                ],
+                ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// 🧩 Reported Items Page
+class ReportedItemsPage extends StatelessWidget {
+  const ReportedItemsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Reported Items'),
+        backgroundColor: const Color(0xFFb71c1c),
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('items')
+            .where('reporterId', isEqualTo: userId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text(
+                'No reported items yet.',
+                style: TextStyle(fontSize: 16, color: Colors.black54),
+              ),
+            );
+          }
+
+          final items = snapshot.data!.docs;
+
+          return ListView.builder(
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index].data() as Map<String, dynamic>;
+
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: ListTile(
+                  leading: const Icon(Icons.inventory_2_outlined,
+                      color: Color(0xFFb71c1c)),
+                  title: Text(item['itemName'] ?? 'Unnamed Item'),
+                  subtitle: Text(
+                    '${item['description'] ?? 'No description'}\n'
+                    'Location: ${item['location'] ?? 'Unknown'}',
+                  ),
+                  isThreeLine: true,
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

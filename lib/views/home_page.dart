@@ -1,12 +1,12 @@
-// lib/views/home_page.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../services/item_service.dart';
 import '../widgets/item_card.dart';
 import 'item_detail_page.dart';
 import '../models/item.dart';
-import 'profile_page.dart'; // ✅ import profile page
+import 'profile_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -18,8 +18,8 @@ class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   String _searchQuery = "";
 
-  // 🔹 Placeholder user data (later connect to Firebase)
-  String userName = "";
+  // ✅ Get current Firebase user
+  final User? user = FirebaseAuth.instance.currentUser;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,7 @@ class _HomePageState extends State<HomePage> {
     }).toList();
 
     final List<Widget> _pages = [
-      // 🏠 Home
+      // 🏠 HOME PAGE
       Column(
         children: [
           Container(
@@ -74,7 +74,7 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
 
-      // 🔍 Search
+      // 🔍 SEARCH PAGE
       Column(
         children: [
           Container(
@@ -97,7 +97,8 @@ class _HomePageState extends State<HomePage> {
                 hintText: "Search by name, category, or location",
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onChanged: (val) {
                 setState(() {
@@ -109,8 +110,11 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: filteredItems.isEmpty
                 ? const Center(
-                    child: Text("No items found",
-                        style: TextStyle(color: Colors.grey)))
+                    child: Text(
+                      "No items found",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: filteredItems.length,
                     itemBuilder: (ctx, i) {
@@ -119,7 +123,8 @@ class _HomePageState extends State<HomePage> {
                         margin: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: ListTile(
                           leading: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
@@ -137,9 +142,10 @@ class _HomePageState extends State<HomePage> {
                                     fit: BoxFit.contain,
                                   ),
                           ),
-                          title: Text(it.title,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold)),
+                          title: Text(
+                            it.title,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           subtitle:
                               Text("${it.category} • ${it.locationFound}"),
                           trailing: Icon(
@@ -148,7 +154,8 @@ class _HomePageState extends State<HomePage> {
                           ),
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
-                                builder: (_) => ItemDetailPage(item: it)),
+                              builder: (_) => ItemDetailPage(item: it),
+                            ),
                           ),
                         ),
                       );
@@ -158,7 +165,7 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
 
-      // 📂 Category
+      // 📂 CATEGORY PAGE
       CategoryPage(items: items),
     ];
 
@@ -169,7 +176,7 @@ class _HomePageState extends State<HomePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // ✅ Left side logo
+            // 🔹 Left side: Logo
             Row(
               children: [
                 const SizedBox(width: 12),
@@ -177,7 +184,7 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
 
-            // ✅ Right side: name (left) + tappable icon
+            // 🔹 Right side: user name + avatar
             GestureDetector(
               onTap: () {
                 Navigator.push(
@@ -189,17 +196,21 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   const SizedBox(width: 8),
                   Text(
-                    userName,
+                    user?.displayName ?? 'Guest User',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 16, // 🔹 Adjust font size here
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(width: 8),
-                  const CircleAvatar(
-                    radius: 15,
-                    backgroundImage: AssetImage('assets/profile.jpg'),
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundImage: NetworkImage(
+                      user?.photoURL ??
+                          'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+                    ),
                   ),
                   const SizedBox(width: 12),
                 ],
@@ -248,7 +259,9 @@ class _HomePageState extends State<HomePage> {
               BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
               BottomNavigationBarItem(icon: Icon(Icons.search), label: "Search"),
               BottomNavigationBarItem(
-                  icon: Icon(Icons.category), label: "Category"),
+                icon: Icon(Icons.category),
+                label: "Category",
+              ),
             ],
           ),
         ),
@@ -258,7 +271,7 @@ class _HomePageState extends State<HomePage> {
 }
 
 // ===============================
-// CATEGORY PAGE (Dropdown version)
+// CATEGORY PAGE
 // ===============================
 class CategoryPage extends StatefulWidget {
   final List<Item> items;
@@ -301,7 +314,6 @@ class _CategoryPageState extends State<CategoryPage> {
                 color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
-
         Padding(
           padding: const EdgeInsets.all(12.0),
           child: DropdownButtonFormField<String>(
@@ -325,7 +337,6 @@ class _CategoryPageState extends State<CategoryPage> {
             },
           ),
         ),
-
         Expanded(
           child: filteredItems.isEmpty
               ? const Center(child: Text("No items in this category"))
@@ -345,7 +356,8 @@ class _CategoryPageState extends State<CategoryPage> {
                       item: it,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
-                            builder: (_) => ItemDetailPage(item: it)),
+                          builder: (_) => ItemDetailPage(item: it),
+                        ),
                       ),
                     );
                   },

@@ -1,6 +1,5 @@
-// lib/views/login_page.dart
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,6 +17,8 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
   String _errorMessage = '';
 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   @override
   void dispose() {
     _emailC.dispose();
@@ -33,34 +34,37 @@ class _LoginPageState extends State<LoginPage> {
       _errorMessage = '';
     });
 
-    final prefs = await SharedPreferences.getInstance();
-    final savedEmail = prefs.getString("email");
-    final savedPassword = prefs.getString("password");
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: _emailC.text.trim(),
+        password: _pwC.text.trim(),
+      );
 
-    await Future.delayed(const Duration(seconds: 1)); // simulate delay
-
-    setState(() => _isLoading = false);
-
-    if (savedEmail == null || savedPassword == null) {
-      setState(() {
-        _errorMessage = "No account found. Please register first.";
-      });
-      return;
-    }
-
-    if (_emailC.text.trim() == savedEmail &&
-        _pwC.text.trim() == savedPassword) {
       if (!mounted) return;
 
-      // ✅ Replace the entire stack so there's no "back" arrow or return
+      // ✅ Navigate to Home and remove back stack
       Navigator.of(context).pushNamedAndRemoveUntil(
         '/home',
         (Route<dynamic> route) => false,
       );
-    } else {
+    } on FirebaseAuthException catch (e) {
       setState(() {
-        _errorMessage = "Invalid email or password.";
+        if (e.code == 'user-not-found') {
+          _errorMessage = "No account found for this email.";
+        } else if (e.code == 'wrong-password') {
+          _errorMessage = "Invalid password. Please try again.";
+        } else if (e.code == 'invalid-email') {
+          _errorMessage = "Invalid email format.";
+        } else {
+          _errorMessage = "Login failed. ${e.message}";
+        }
       });
+    } catch (e) {
+      setState(() {
+        _errorMessage = "Something went wrong. Please try again.";
+      });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -70,7 +74,7 @@ class _LoginPageState extends State<LoginPage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 🖼️ Background image
+          // 🖼️ Background
           Image.asset('assets/backgroundclean.png', fit: BoxFit.cover),
 
           Align(
@@ -102,7 +106,7 @@ class _LoginPageState extends State<LoginPage> {
                       key: _formKey,
                       child: Column(
                         children: [
-                          // 📧 Email Field
+                          // 📧 Email
                           TextFormField(
                             controller: _emailC,
                             validator: (val) => val == null || val.isEmpty
@@ -123,7 +127,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           const SizedBox(height: 12),
 
-                          // 🔒 Password Field
+                          // 🔒 Password
                           TextFormField(
                             controller: _pwC,
                             obscureText: _obscurePassword,
