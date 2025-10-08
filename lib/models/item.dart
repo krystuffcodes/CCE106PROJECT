@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class Item {
   final String id;
   final String title;
-  final String imagePath; // can be: 'assets/..', local file path, or http(s) URL
+  final String imagePath;
   final String locationFound;
   final DateTime dateTime;
   final String category;
@@ -24,7 +24,15 @@ class Item {
     required this.description,
   });
 
-  factory Item.fromMap(Map<String, dynamic> map, String id) {
+  /// Converts Firestore data → Item object
+  factory Item.fromMap(Map<dynamic, dynamic> rawMap, String id) {
+    // Force convert all keys to strings for consistency
+    final map = rawMap.map((key, value) => MapEntry(key.toString(), value));
+
+    // DEBUG: Log to verify Firestore data
+    print('🟢 Firestore map for $id => $map');
+
+    // Handle Firestore Timestamp or string
     final dateVal = map['dateTime'];
     DateTime dateTime;
     if (dateVal is Timestamp) {
@@ -37,17 +45,20 @@ class Item {
 
     return Item(
       id: id,
-      title: map['title'] ?? '',
-      imagePath: map['imagePath'] ?? '',
-      locationFound: map['locationFound'] ?? '',
+      title: (map['title']?.toString().trim().isNotEmpty ?? false)
+          ? map['title'].toString().trim()
+          : 'Unnamed Item',
+      imagePath: map['imagePath']?.toString() ?? 'assets/default.jpg',
+      locationFound: map['locationFound']?.toString() ?? 'Unknown location',
       dateTime: dateTime,
-      category: map['category'] ?? 'Others',
-      isFound: map['isFound'] ?? false,
-      reporterId: map['reporterId'] ?? '',
-      description: map['description'] ?? '',
+      category: map['category']?.toString() ?? 'Others',
+      isFound: map['isFound'] == true,
+      reporterId: map['reporterId']?.toString() ?? '',
+      description: map['description']?.toString() ?? '',
     );
   }
 
+  /// Converts Item object → Firestore data
   Map<String, dynamic> toMap() {
     return {
       'title': title,

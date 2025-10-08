@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,11 +14,12 @@ class _LoginPageState extends State<LoginPage> {
   final _pwC = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   String _errorMessage = '';
-
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
   void dispose() {
@@ -35,18 +37,53 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      await _auth.signInWithEmailAndPassword(
+      // Sign in the user
+      final userCred = await _auth.signInWithEmailAndPassword(
         email: _emailC.text.trim(),
         password: _pwC.text.trim(),
       );
 
-      if (!mounted) return;
+      final user = userCred.user;
+      if (user == null) {
+        setState(() {
+          _errorMessage = 'Login failed: user not found.';
+        });
+        return;
+      }
 
-      // ✅ Navigate to Home and remove back stack
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        '/home',
-        (Route<dynamic> route) => false,
-      );
+      // Fetch Firestore user data (document ID must match the UID)
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (!doc.exists) {
+        setState(() {
+          _errorMessage =
+              'No Firestore data found for this account. Contact administrator.';
+        });
+        return;
+      }
+
+      final data = doc.data();
+      print('📄 Firestore data: $data'); // For debugging
+
+      if (data == null || !data.containsKey('role')) {
+        setState(() {
+          _errorMessage = 'No role found. Please contact administrator.';
+        });
+        return;
+      }
+
+      final role = (data['role'] ?? '').toString().toLowerCase();
+
+      // Navigate based on role
+      if (role == 'admin') {
+        if (!mounted) return;
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/admin', (route) => false);
+      } else {
+        if (!mounted) return;
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/home', (route) => false);
+      }
     } on FirebaseAuthException catch (e) {
       setState(() {
         if (e.code == 'user-not-found') {
@@ -74,7 +111,6 @@ class _LoginPageState extends State<LoginPage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 🖼️ Background
           Image.asset('assets/backgroundclean.png', fit: BoxFit.cover),
 
           Align(
@@ -84,11 +120,9 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 🌿 Logo
                   Image.asset('assets/logo.png', height: 160),
                   const SizedBox(height: 80),
 
-                  // 🧾 Login Form
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -96,22 +130,22 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: const [
                         BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 6,
-                          offset: Offset(0, 3),
-                        ),
+                            color: Colors.black26,
+                            blurRadius: 6,
+                            offset: Offset(0, 3)),
                       ],
                     ),
                     child: Form(
                       key: _formKey,
                       child: Column(
                         children: [
-                          // 📧 Email
+                          // Email field
                           TextFormField(
                             controller: _emailC,
-                            validator: (val) => val == null || val.isEmpty
-                                ? "Enter your email"
-                                : null,
+                            validator: (val) =>
+                                val == null || val.isEmpty
+                                    ? "Enter your email"
+                                    : null,
                             decoration: const InputDecoration(
                               prefixIcon:
                                   Icon(Icons.email, color: Colors.black87),
@@ -124,19 +158,21 @@ class _LoginPageState extends State<LoginPage> {
                               fillColor: Colors.white,
                             ),
                             style: const TextStyle(color: Colors.black),
+                            keyboardType: TextInputType.emailAddress,
                           ),
                           const SizedBox(height: 12),
 
-                          // 🔒 Password
+                          // Password field
                           TextFormField(
                             controller: _pwC,
                             obscureText: _obscurePassword,
-                            validator: (val) => val == null || val.isEmpty
-                                ? "Enter your password"
-                                : null,
+                            validator: (val) =>
+                                val == null || val.isEmpty
+                                    ? "Enter your password"
+                                    : null,
                             decoration: InputDecoration(
-                              prefixIcon: const Icon(Icons.lock,
-                                  color: Colors.black87),
+                              prefixIcon:
+                                  const Icon(Icons.lock, color: Colors.black87),
                               hintText: 'Password',
                               border: const OutlineInputBorder(
                                 borderRadius:
@@ -151,17 +187,15 @@ class _LoginPageState extends State<LoginPage> {
                                       : Icons.visibility,
                                   color: Colors.black54,
                                 ),
-                                onPressed: () {
-                                  setState(() => _obscurePassword =
-                                      !_obscurePassword);
-                                },
+                                onPressed: () => setState(() =>
+                                    _obscurePassword = !_obscurePassword),
                               ),
                             ),
                             style: const TextStyle(color: Colors.black),
                           ),
                           const SizedBox(height: 18),
 
-                          // ⚠️ Error Message
+                          // Error message
                           if (_errorMessage.isNotEmpty)
                             Padding(
                               padding:
@@ -172,10 +206,11 @@ class _LoginPageState extends State<LoginPage> {
                                   color: Colors.red,
                                   fontWeight: FontWeight.bold,
                                 ),
+                                textAlign: TextAlign.center,
                               ),
                             ),
 
-                          // 🔘 Login Button
+                          // Login button
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
@@ -189,8 +224,13 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                               child: _isLoading
-                                  ? const CircularProgressIndicator(
-                                      color: Colors.white,
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
                                     )
                                   : const Text(
                                       'Login',
@@ -204,10 +244,10 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           const SizedBox(height: 12),
 
+                          // Register link
                           TextButton(
-                            onPressed: () {
-                              Navigator.pushNamed(context, '/register');
-                            },
+                            onPressed: () =>
+                                Navigator.pushNamed(context, '/register'),
                             child: const Text(
                               "Don't have an account? Register",
                               style: TextStyle(color: Colors.black87),

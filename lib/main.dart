@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/item_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'views/admin_dashboard.dart';
 
 
 // Import all your pages
@@ -45,6 +46,7 @@ class MyApp extends StatelessWidget {
           '/upload': (_) => const UploadItemPage(),
           '/profile': (_) => const ProfilePage(),
           '/lostfound': (context) => const LostFoundPage(),
+          '/admin': (_) => const AdminDashboard(),
 
         },
       ),
